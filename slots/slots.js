@@ -1,4 +1,3 @@
-// slots/slots.js
 import * as THREE from 'three';
 
 export function criarSlots(scene) {

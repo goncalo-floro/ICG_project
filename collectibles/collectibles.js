@@ -1,4 +1,3 @@
-// collectibles/collectibles.js
 import * as THREE from 'three';
 
 export function criarColecionaveis(scene) {

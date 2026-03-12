@@ -1,4 +1,3 @@
-// player/player.js
 import * as THREE from 'three';
 
 export function criarJogador(scene) {

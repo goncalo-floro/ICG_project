@@ -1,4 +1,3 @@
-// cenario/cenario.js
 import * as THREE from 'three';
 
 export function construirCenario(scene) {
