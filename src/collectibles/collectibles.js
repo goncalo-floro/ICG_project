@@ -1,111 +1,53 @@
 import * as THREE from 'three';
 
-const RAIO_RECOLHA = 4.0;
-
 export const ITEM_LABELS = {
-    ficha_ouro:  'Ficha de Ouro',
     ficha_prata: 'Ficha de Prata',
-    carta_as:    'As de Espadas',
-    trofeu:      'Trofeu',
-    dado:        'Dado de Marfim',
-    moeda:       'Moeda da Sorte',
+    trofeu:      'Trofeu Cinzento',
+    dado:        'Dado Amarelo',
+    moeda:       'Moeda Azul',
 };
 
 const CONFIG = [
-    { tipo: 'ficha_ouro',  valor: 50,  cor: 0xD4AF37, pos: [-8,  0, -5]  },
-    { tipo: 'ficha_prata', valor: 25,  cor: 0xC8C8C8, pos: [8,   0, -12] },
-    { tipo: 'carta_as',    valor: 100, cor: 0xfff8f0, pos: [-15, 0, -16] },
-    { tipo: 'trofeu',      valor: 200, cor: 0xD4AF37, pos: [0,   0, -22] },
-    { tipo: 'dado',        valor: 75,  cor: 0xf5f0e8, pos: [18,  0, -2]  },
-    { tipo: 'moeda',       valor: 30,  cor: 0xFFD700, pos: [-18, 0, 5]   },
+    { tipo: 'ficha_prata', valor: 0, cor: 0xC8C8C8, pos: [-10, 1.1, -8] },
+    { tipo: 'trofeu',      valor: 0, cor: 0x888888, pos: [10,  1.1, -8] },
+    { tipo: 'dado',        valor: 0, cor: 0xFFF066, pos: [-0.8, 1.3, -20] },
+    { tipo: 'moeda',       valor: 0, cor: 0x2A6BFF, pos: [0.8, 1.15, -20] },
 ];
 
 export function criarColecionaveis(scene) {
     return CONFIG.map(cfg => {
         const group = new THREE.Group();
         group.position.set(...cfg.pos);
-        group.position.y = 1.1;
 
         const mesh = criarMesh(cfg);
         if (mesh) { mesh.castShadow = true; group.add(mesh); }
 
-        // Aura de luz
-        const aura = new THREE.PointLight(cfg.cor, 1.4, 3.2, 2.2);
-        group.add(aura);
-
-        // Glow sphere
-        const glow = new THREE.Mesh(
-            new THREE.SphereGeometry(0.07, 8, 8),
-            new THREE.MeshStandardMaterial({
-                color: cfg.cor, emissive: cfg.cor, emissiveIntensity: 3,
-                transparent: true, opacity: 0.8,
-            })
-        );
-        glow.position.y = 0.55;
-        group.add(glow);
-
-        // Label sprite flutuante
-        const label = criarLabelSprite(ITEM_LABELS[cfg.tipo]);
-        label.position.y = 1.0;
-        group.add(label);
-
         scene.add(group);
         return {
-            tipo: cfg.tipo, valor: cfg.valor, recolhido: false,
-            group, mesh, aura, glow, label,
-            posY0: group.position.y,
+            tipo: cfg.tipo,
+            recolhido: false,
+            group,
+            mesh,
         };
     });
 }
 
-function criarLabelSprite(texto) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256; canvas.height = 56;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 256, 56);
-    ctx.font = 'bold 28px Georgia, serif';
-    ctx.fillStyle = '#D4AF37';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(texto, 128, 28);
-    const tex = new THREE.CanvasTexture(canvas);
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-    sprite.scale.set(1.4, 0.31, 1);
-    sprite.renderOrder = 500;
-    return sprite;
-}
-
-export function atualizarColecionaveis(cols, delta) {
-    const t = performance.now() * 0.001;
-    cols.forEach((c, i) => {
-        if (c.recolhido) return;
-        c.group.position.y = c.posY0 + Math.sin(t * 1.4 + i * 1.1) * 0.13;
-        c.group.rotation.y += delta * 1.1;
-        if (c.aura) c.aura.intensity = 1.1 + Math.sin(t * 2.8 + i) * 0.4;
-        if (c.glow) c.glow.material.opacity = 0.5 + Math.sin(t * 2 + i) * 0.28;
-    });
-}
-
-export function verificarRecolha(jogador, cols) {
-    for (const c of cols) {
-        if (c.recolhido) continue;
-        if (jogador.position.distanceTo(c.group.position) < RAIO_RECOLHA) return c;
-    }
-    return null;
+export function recolherItem(item) {
+    if (item.recolhido) return;
+    item.recolhido = true;
+    item.group.visible = false;
 }
 
 export function getTotalRecolhidos(cols) {
     return cols.filter(c => c.recolhido).length;
 }
 
-// ─── Meshes ───────────────────────────────────────────────────────────────────
 function criarMesh(cfg) {
     switch (cfg.tipo) {
-        case 'ficha_ouro': case 'ficha_prata': return criarFicha(cfg.cor);
-        case 'carta_as':   return criarCarta();
-        case 'trofeu':     return criarTrofeu(cfg.cor);
-        case 'dado':       return criarDado();
-        case 'moeda':      return criarMoeda(cfg.cor);
+        case 'ficha_prata': return criarFicha(cfg.cor);
+        case 'trofeu':      return criarTrofeu(cfg.cor);
+        case 'dado':        return criarDado(cfg.cor);
+        case 'moeda':       return criarMoeda(cfg.cor);
     }
 }
 
@@ -120,16 +62,6 @@ function criarFicha(cor) {
         b.position.set(Math.cos(a) * 0.24, 0, Math.sin(a) * 0.24);
         g.add(b);
     }
-    return g;
-}
-
-function criarCarta() {
-    const g = new THREE.Group();
-    const matF = new THREE.MeshStandardMaterial({ color: 0xfff8f0, roughness: 0.5 });
-    const matS = new THREE.MeshStandardMaterial({ color: 0x100808, roughness: 0.3 });
-    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.01, 0.48), matF));
-    const s = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.12), matS);
-    s.position.y = 0.015; g.add(s);
     return g;
 }
 
@@ -150,16 +82,54 @@ function criarTrofeu(cor) {
     return g;
 }
 
-function criarDado() {
+function criarDado(cor) {
     const g = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({ color: 0xf5f0e8, roughness: 0.3 });
+    const mat = new THREE.MeshStandardMaterial({ color: cor, roughness: 0.3 });
     const matP = new THREE.MeshStandardMaterial({ color: 0x100606, roughness: 0.5 });
     g.add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.34), mat));
-    // Pontos nas 3 faces visíveis
-    [[0, 0.18, 0], [0.18, 0, 0], [0, 0, 0.18]].forEach(p => {
-        const pt = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), matP);
-        pt.position.set(...p); g.add(pt);
-    });
+
+    const makePip = (x, y, z) => {
+        const pt = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), matP);
+        pt.position.set(x, y, z);
+        g.add(pt);
+    };
+
+    const d = 0.09;
+    const f = 0.0;
+
+    // Face 1: topo
+    makePip(0, 0.18, 0);
+
+    // Face 2: frente
+    makePip(-d, -d, 0.18);
+    makePip(d, d, 0.18);
+
+    // Face 3: esquerda
+    makePip(-0.18, -d, -d);
+    makePip(-0.18, 0, 0);
+    makePip(-0.18, d, d);
+
+    // Face 4: direita
+    makePip(0.18, -d, -d);
+    makePip(0.18, -d, d);
+    makePip(0.18, d, -d);
+    makePip(0.18, d, d);
+
+    // Face 5: trás
+    makePip(-d, -d, -0.18);
+    makePip(d, d, -0.18);
+    makePip(-d, d, -0.18);
+    makePip(d, -d, -0.18);
+    makePip(0, 0, -0.18);
+
+    // Face 6: baixo
+    makePip(-d, -0.18, -d);
+    makePip(-d, -0.18, 0);
+    makePip(-d, -0.18, d);
+    makePip(d, -0.18, -d);
+    makePip(d, -0.18, 0);
+    makePip(d, -0.18, d);
+
     return g;
 }
 

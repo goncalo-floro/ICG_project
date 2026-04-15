@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 
-// ─── Utilitário canvas ────────────────────────────────────────────────────────
 function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -26,7 +25,6 @@ function makeSprite(cw, ch) {
     return { sprite, canvas, ctx, tex };
 }
 
-// ─── Classe HUD ───────────────────────────────────────────────────────────────
 export class HUD {
     constructor(renderer) {
         this.renderer = renderer;
@@ -37,7 +35,6 @@ export class HUD {
             -10, 10
         );
         this._notifTimer = 0;
-        this._slotVisible = false;
         this._introVisible = true;
         this._colItems = [];
 
@@ -57,15 +54,8 @@ export class HUD {
         this._posicionarIntro();
     }
 
-    // ── HUD de jogo ───────────────────────────────────────────────────────────
     _construirHUD() {
-        // Score
-        this._score = makeSprite(220, 90);
-        this.orthoScene.add(this._score.sprite);
-        this._score.sprite.visible = false;
-        this._desenharScore(0);
-
-        // Lista
+        // Lista de coleção (sem score)
         this._lista = makeSprite(280, 260);
         this.orthoScene.add(this._lista.sprite);
         this._lista.sprite.visible = false;
@@ -85,35 +75,19 @@ export class HUD {
         roundRect(cc, 1, 1, 758, 44, 7); cc.stroke();
         cc.fillStyle = '#5a3e18';
         cc.font = '15px Georgia,serif'; cc.textAlign = 'center';
-        cc.fillText('WASD — Mover   |   Rato Dir. — Câmara   |   Clique — Recolher   |   E — Slot', 380, 30);
+        cc.fillText('WASD — Mover   |   Rato Dir. — Câmara   |   Rato Esq. — Recolher', 380, 30);
         this._ctrl.tex.needsUpdate = true;
         this.orthoScene.add(this._ctrl.sprite);
-
-        // Slot prompt
-        this._slotPrompt = makeSprite(480, 58);
-        this._slotPrompt.sprite.material.opacity = 0;
-        const sp = this._slotPrompt.ctx;
-        sp.fillStyle = 'rgba(14,8,2,0.93)';
-        roundRect(sp, 0, 0, 480, 58, 10); sp.fill();
-        sp.strokeStyle = '#D4AF37'; sp.lineWidth = 2;
-        roundRect(sp, 2, 2, 476, 54, 8); sp.stroke();
-        sp.fillStyle = '#D4AF37'; sp.font = 'bold 20px Georgia,serif'; sp.textAlign = 'center';
-        sp.fillText('Pressiona  E  para jogar a Slot Machine', 240, 37);
-        this._slotPrompt.tex.needsUpdate = true;
-        this.orthoScene.add(this._slotPrompt.sprite);
     }
 
-    // ── Ecrã de intro (sprites ortográficos) ─────────────────────────────────
     _construirIntro() {
-        // Fundo escuro semi-transparente
-        this._introBg = makeSprite(4, 4); // vai ser escalado para o ecrã
+        this._introBg = makeSprite(4, 4);
         const bg = this._introBg.ctx;
         bg.fillStyle = 'rgba(4,2,1,0.82)';
         bg.fillRect(0, 0, 4, 4);
         this._introBg.tex.needsUpdate = true;
         this.orthoScene.add(this._introBg.sprite);
 
-        // Título
         this._introTitulo = makeSprite(900, 120);
         const tt = this._introTitulo.ctx;
         tt.clearRect(0, 0, 900, 120);
@@ -127,29 +101,25 @@ export class HUD {
         this._introTitulo.tex.needsUpdate = true;
         this.orthoScene.add(this._introTitulo.sprite);
 
-        // Subtítulo
         this._introSub = makeSprite(600, 48);
         const st = this._introSub.ctx;
         st.fillStyle = '#7a5c1e';
         st.font = '24px Georgia,serif';
         st.textAlign = 'center';
-        st.fillText('Um salao. Uma noite. Uma aposta.', 300, 34);
+        st.fillText('', 300, 34);
         this._introSub.tex.needsUpdate = true;
         this.orthoScene.add(this._introSub.sprite);
 
-        // Botão — sprite com hitbox registada
         this._introBotao = makeSprite(420, 70);
         this._desenharBotao(false);
         this.orthoScene.add(this._introBotao.sprite);
 
-        // Guardar limites do botão para detetar clique
         this._botaoBounds = { w: 420, h: 70 };
-
         this._posicionarIntro();
     }
 
     _desenharBotao(hover) {
-        const { ctx, canvas, tex } = this._introBotao;
+        const { ctx, tex } = this._introBotao;
         ctx.clearRect(0, 0, 420, 70);
         ctx.fillStyle = hover ? 'rgba(30,18,4,0.97)' : 'rgba(12,7,2,0.92)';
         roundRect(ctx, 0, 0, 420, 70, 12); ctx.fill();
@@ -168,74 +138,38 @@ export class HUD {
 
     _posicionarIntro() {
         const w = window.innerWidth, h = window.innerHeight;
-
-        // Fundo cobre o ecrã todo
         this._introBg.sprite.scale.set(w, h, 1);
         this._introBg.sprite.position.set(0, 0, 0);
-
-        // Título — centro ligeiramente acima
         this._introTitulo.sprite.scale.set(900, 120, 1);
         this._introTitulo.sprite.position.set(0, 80, 2);
-
-        // Subtítulo — abaixo do título
         this._introSub.sprite.scale.set(600, 48, 1);
         this._introSub.sprite.position.set(0, -10, 2);
-
-        // Botão — centro
         this._introBotao.sprite.scale.set(420, 70, 1);
         this._introBotao.sprite.position.set(0, -110, 2);
     }
 
     _posicionar() {
         const w = window.innerWidth, h = window.innerHeight;
-
-        this._score.sprite.scale.set(220, 90, 1);
-        this._score.sprite.position.set(-w/2 + 110 + 14, h/2 - 45 - 14, 1);
-
         const lh = Math.max(260, 50 + this._colItems.length * 34 + 16);
         this._lista.sprite.scale.set(280, lh, 1);
         this._lista.sprite.position.set(w/2 - 140 - 14, h/2 - lh/2 - 14, 1);
-
         this._notif.sprite.scale.set(560, 74, 1);
-        this._notif.sprite.position.set(0, 0, 1);
-
+        this._notif.sprite.position.set(0, h/2 - 53, 1);
         this._ctrl.sprite.scale.set(760, 46, 1);
         this._ctrl.sprite.position.set(0, -h/2 + 23 + 12, 1);
-
-        this._slotPrompt.sprite.scale.set(480, 58, 1);
-        this._slotPrompt.sprite.position.set(0, -h/2 + 46 + 29 + 22, 1);
     }
-
-    _desenharScore(v) {
-        const { ctx, canvas, tex } = this._score;
-        ctx.clearRect(0, 0, 220, 90);
-        ctx.fillStyle = 'rgba(12,7,2,0.88)';
-        roundRect(ctx, 0, 0, 220, 90, 10); ctx.fill();
-        ctx.strokeStyle = '#8B6914'; ctx.lineWidth = 2;
-        roundRect(ctx, 1.5, 1.5, 217, 87, 9); ctx.stroke();
-        ctx.fillStyle = '#5a3e18';
-        ctx.font = 'bold 13px Georgia,serif'; ctx.textAlign = 'left';
-        ctx.fillText('FICHAS', 16, 26);
-        ctx.fillStyle = '#D4AF37';
-        ctx.font = 'bold 38px Georgia,serif';
-        ctx.fillText(String(v), 16, 72);
-        tex.needsUpdate = true;
-    }
-
-    // ── API pública ───────────────────────────────────────────────────────────
-
-    setScore(v) { this._desenharScore(v); }
 
     setColecao(items) {
         this._colItems = items;
         const NOMES = {
-            ficha_ouro:'Ficha de Ouro', ficha_prata:'Ficha de Prata',
-            carta_as:'As de Espadas',   trofeu:'Trofeu do Casino',
-            dado:'Dado de Marfim',      moeda:'Moeda da Sorte',
+            ficha_prata:'Ficha de Prata',
+            trofeu:'Trofeu Cinzento',
+            dado:'Dado Amarelo',
+            moeda:'Moeda Azul',
         };
         const lh = 50 + items.length * 34 + 16;
-        const { ctx, tex } = this._lista;
-        this._lista.canvas.height = lh;
+        const { ctx, tex, canvas } = this._lista;
+        canvas.height = lh;
         ctx.clearRect(0, 0, 280, lh);
         ctx.fillStyle = 'rgba(12,7,2,0.88)';
         roundRect(ctx, 0, 0, 280, lh, 10); ctx.fill();
@@ -244,7 +178,7 @@ export class HUD {
         ctx.strokeStyle = 'rgba(139,105,20,0.35)'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(14, 44); ctx.lineTo(266, 44); ctx.stroke();
         ctx.fillStyle = '#D4AF37'; ctx.font = 'bold 14px Georgia,serif'; ctx.textAlign = 'left';
-        ctx.fillText('COLECAO', 14, 30);
+        ctx.fillText('COLEÇÃO', 14, 30);
         items.forEach((item, i) => {
             const y = 50 + i * 34 + 20;
             ctx.strokeStyle = item.recolhido ? '#D4AF37' : '#4a3010';
@@ -276,16 +210,11 @@ export class HUD {
         this._notif.sprite.material.opacity = 1;
     }
 
-    setSlotPrompt(v) { this._slotVisible = v; }
-
-    // Chamado pelo main para tratar hover/clique no botão de intro
-    // Devolve true se o clique foi no botão
     testarCliqueBotao(clientX, clientY) {
         if (!this._introVisible) return false;
         const sp = this._introBotao.sprite;
         const sw = sp.scale.x / 2, sh = sp.scale.y / 2;
         const cx = sp.position.x, cy = sp.position.y;
-        // Converter clientX/Y para coords ortográficas
         const ox = clientX - window.innerWidth  / 2;
         const oy = -(clientY - window.innerHeight / 2);
         return ox >= cx - sw && ox <= cx + sw && oy >= cy - sh && oy <= cy + sh;
@@ -299,7 +228,6 @@ export class HUD {
     }
 
     esconderIntro(onDone) {
-        // Fade out do overlay de intro
         let alpha = 1;
         const id = setInterval(() => {
             alpha -= 0.04;
@@ -312,8 +240,6 @@ export class HUD {
                     s.sprite.visible = false;
                 });
                 this._introVisible = false;
-                // Mostrar HUD de jogo
-                this._score.sprite.visible = true;
                 this._lista.sprite.visible = true;
                 this._ctrl.sprite.visible = true;
                 this._posicionar();
@@ -328,9 +254,6 @@ export class HUD {
             if (this._notifTimer < 0.7)
                 this._notif.sprite.material.opacity = Math.max(0, this._notifTimer / 0.7);
         }
-        const target = this._slotVisible ? 1 : 0;
-        const cur = this._slotPrompt.sprite.material.opacity;
-        this._slotPrompt.sprite.material.opacity = cur + (target - cur) * 0.12;
     }
 
     render() {
