@@ -57,6 +57,12 @@ criarSlots(scene);   // apenas modelos, ainda me falta implementar os extras
 
 hud.setColecao(colecionaveis);
 
+// Lighting (passar luzes para o HUD)
+const ambientLight = scene.children.find(child => child instanceof THREE.Light && child.type === 'AmbientLight');
+const dirLight = scene.children.find(child => child instanceof THREE.Light && child.type === 'DirectionalLight');
+const pointLights = scene.children.filter(child => child instanceof THREE.Light && child.type === 'PointLight' && child !== followLight);
+hud.setLights(ambientLight, dirLight, pointLights, followLight, followSpot);
+
 // Raycaster para recolha
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -148,7 +154,12 @@ window.addEventListener('click', e => {
     recolherPorClique(e);
 });
 
-window.addEventListener('keydown', e => { keyState[e.code] = true; });
+window.addEventListener('keydown', e => {
+    keyState[e.code] = true;
+    if (e.code === 'KeyL' && gameState === 'PLAYING') {
+        hud.toggleLightingPanel();
+    }
+});
 window.addEventListener('keyup', e => { keyState[e.code] = false; });
 
 window.addEventListener('resize', () => {

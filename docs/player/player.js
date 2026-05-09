@@ -7,27 +7,69 @@ export function criarJogador(scene) {
     const g = new THREE.Group();
 
     const mFato   = new THREE.MeshStandardMaterial({ color: 0x12122a, roughness: 0.45, metalness: 0.15 });
-    const mCamisa = new THREE.MeshStandardMaterial({ color: 0xf0e8d8, roughness: 0.6 });
+    const mCamisa = new THREE.MeshStandardMaterial({ color: 0xf0e8d8, roughness: 0.6});
     const mOuro   = new THREE.MeshStandardMaterial({ color: 0xD4AF37, roughness: 0.15, metalness: 0.95 });
     const mRosto  = new THREE.MeshStandardMaterial({ color: 0xc89060, roughness: 0.75 });
     const mCabelo = new THREE.MeshStandardMaterial({ color: 0x1a0e06, roughness: 0.9 });
     const mSapato = new THREE.MeshStandardMaterial({ color: 0x080406, roughness: 0.25, metalness: 0.3 });
     const mCinto  = new THREE.MeshStandardMaterial({ color: 0x080406, roughness: 0.4, metalness: 0.5 });
     const mlight = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.35 });
-    const mMetal = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 1, metalness: 0.7  });  
+    const mMetal = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 1, metalness: 0.7 });
 
-    // PERNAS
-    const coxaL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.38, 0.22), mFato);
-    coxaL.position.set(-0.13, 0.78, 0); coxaL.castShadow = true; g.add(coxaL);
-    const coxaR = coxaL.clone(); coxaR.position.set(0.13, 0.78, 0); g.add(coxaR);
+    // Função helper para criar uma perna com articulações hierárquicas
+    const criarPerna = (x, lado) => {
+        const perna = new THREE.Group();
+        perna.position.set(x, 0.78, 0); // Posição da anca
+        
+        // ANCA (visual)
+        const anca = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), mFato);
+        anca.position.set(0, 0, 0);
+        anca.castShadow = true;
+        perna.add(anca);
+        
+        // COXA (articulação do quadril)
+        const hipJoint = new THREE.Group();
+        hipJoint.position.set(0, 0, 0);
+        perna.add(hipJoint);
+        
+        const coxa = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.38, 0.22), mFato);
+        coxa.position.set(0, -0.19, 0); // Centro da coxa relativo ao hip joint
+        coxa.castShadow = true;
+        hipJoint.add(coxa);
+        
+        // JOELHO (articulação do joelho)
+        const kneeJoint = new THREE.Group();
+        kneeJoint.position.set(0, -0.38, 0); // Fim da coxa
+        hipJoint.add(kneeJoint);
+        
+        const canela = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.36, 0.19), mFato);
+        canela.position.set(0, -0.18, 0); // Centro da canela relativo ao knee joint
+        canela.castShadow = true;
+        kneeJoint.add(canela);
+        
+        // TORNOZELO (articulação do tornozelo)
+        const ankleJoint = new THREE.Group();
+        ankleJoint.position.set(0, -0.36, 0); // Fim da canela
+        kneeJoint.add(ankleJoint);
+        
+        const sapato = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.1, 0.34), mSapato);
+        sapato.position.set(0, -0.05, 0.06);
+        ankleJoint.add(sapato);
+        
+        return { perna, hipJoint, kneeJoint, ankleJoint };
+    };
 
-    const canelaL = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.36, 0.19), mFato);
-    canelaL.position.set(-0.13, 0.38, 0); canelaL.castShadow = true; g.add(canelaL);
-    const canelaR = canelaL.clone(); canelaR.position.set(0.13, 0.38, 0); g.add(canelaR);
+    // Criar duas pernas
+    const pernaL = criarPerna(-0.13, 'left');
+    const pernaR = criarPerna(0.13, 'right');
+    g.add(pernaL.perna);
+    g.add(pernaR.perna);
 
-    const sapatoL = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.1, 0.34), mSapato);
-    sapatoL.position.set(-0.13, 0.05, 0.06); g.add(sapatoL);
-    const sapatoR = sapatoL.clone(); sapatoR.position.set(0.13, 0.05, 0.06); g.add(sapatoR);
+    // Armazenar referências das pernas para animação
+    g.pernas = {
+        left: { hipJoint: pernaL.hipJoint, kneeJoint: pernaL.kneeJoint },
+        right: { hipJoint: pernaR.hipJoint, kneeJoint: pernaR.kneeJoint }
+    };
 
     // CINTURA E CORPO
     const cinto = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.1, 0.29), mCinto);
@@ -44,30 +86,65 @@ export function criarJogador(scene) {
     const lenco = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.03), mOuro);
     lenco.position.set(-0.18, 1.6, 0.17); g.add(lenco);
 
-    // BRAÇOS 
-    const ombroL = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), mFato);
-    ombroL.position.set(-0.36, 1.68, 0); g.add(ombroL);
-    const ombroR = ombroL.clone(); ombroR.position.set(0.36, 1.68, 0); g.add(ombroR);
+    // BRAÇOS com hierarquia
+    const criarBraco = (x, lado) => {
+        const braco = new THREE.Group();
+        braco.position.set(x, 1.68, 0); // Posição do ombro
+        
+        // Ombro (visual)
+        const ombro = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), mFato);
+        ombro.position.set(0, 0, 0);
+        ombro.castShadow = true;
+        braco.add(ombro);
+        
+        // Articulação do ombro (para rotação)
+        const shoulderJoint = new THREE.Group();
+        shoulderJoint.position.set(0, 0, 0);
+        braco.add(shoulderJoint);
+        
+        const bracoSup = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.36, 0.17), mFato);
+        bracoSup.position.set(0, -0.18, 0);
+        bracoSup.castShadow = true;
+        shoulderJoint.add(bracoSup);
+        
+        // Articulação do cotovelo
+        const elbowJoint = new THREE.Group();
+        elbowJoint.position.set(0, -0.36, 0);
+        shoulderJoint.add(elbowJoint);
+        
+        const ante = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.32, 0.15), mCamisa);
+        ante.position.set(0, -0.16, 0);
+        ante.castShadow = true;
+        elbowJoint.add(ante);
+        
+        // Punho
+        const punho = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.07, 0.16), mFato);
+        punho.position.set(0, -0.35, 0);
+        elbowJoint.add(punho);
+        
+        // Botão (abot)
+        const abot = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), mOuro);
+        abot.position.set(x > 0 ? 0.07 : -0.07, -0.35, 0.04);
+        elbowJoint.add(abot);
+        
+        // Mão
+        const mao = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.12, 0.13), mRosto);
+        mao.position.set(0, -0.42, 0);
+        elbowJoint.add(mao);
+        
+        return { braco, shoulderJoint, elbowJoint };
+    };
 
-    const bracoSupL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.36, 0.17), mFato);
-    bracoSupL.position.set(-0.36, 1.44, 0); bracoSupL.castShadow = true; g.add(bracoSupL);
-    const bracoSupR = bracoSupL.clone(); bracoSupR.position.set(0.36, 1.44, 0); g.add(bracoSupR);
+    const bracoL = criarBraco(-0.36, 'left');
+    const bracoR = criarBraco(0.36, 'right');
+    g.add(bracoL.braco);
+    g.add(bracoR.braco);
 
-    const anteL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.32, 0.15), mCamisa);
-    anteL.position.set(-0.36, 1.1, 0); anteL.castShadow = true; g.add(anteL);
-    const anteR = anteL.clone(); anteR.position.set(0.36, 1.1, 0); g.add(anteR);
-
-    const punhoL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.07, 0.16), mFato);
-    punhoL.position.set(-0.36, 0.93, 0); g.add(punhoL);
-    const punhoR = punhoL.clone(); punhoR.position.set(0.36, 0.93, 0); g.add(punhoR);
-
-    const abotL = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), mOuro);
-    abotL.position.set(-0.42, 0.93, 0.04); g.add(abotL);
-    const abotR = abotL.clone(); abotR.position.set(0.42, 0.93, 0.04); g.add(abotR);
-
-    const maoL = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.12, 0.13), mRosto);
-    maoL.position.set(-0.36, 0.84, 0); g.add(maoL);
-    const maoR = maoL.clone(); maoR.position.set(0.36, 0.84, 0); g.add(maoR);
+    // Armazenar referências dos braços para animação
+    g.bracos = {
+        left: { shoulderJoint: bracoL.shoulderJoint, elbowJoint: bracoL.elbowJoint },
+        right: { shoulderJoint: bracoR.shoulderJoint, elbowJoint: bracoR.elbowJoint }
+    };
 
     // CABEÇA
     const pescoco = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.30, 10), mRosto);
@@ -100,15 +177,21 @@ export function criarJogador(scene) {
     const cabeloBack = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.30, 0.1), mCabelo);
     cabeloBack.position.set(0, 2.1, -0.19); g.add(cabeloBack);
 
-    // LANTERNA
+    // LANTERNA (filha do braço direito)
+    const lanterna = new THREE.Group();
+    lanterna.position.set(0, -0.42, 0); // Na mão
+    bracoR.elbowJoint.add(lanterna);
+
     const cabo = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.03, 0.55, 6), mMetal);
     cabo.rotation.x = Math.PI / 2;
-    cabo.position.set(0.35, 0.85, 0.20);
-    g.add(cabo);
+    cabo.position.set(0, 0, 0.27);
+    lanterna.add(cabo);
 
     const vidro = new THREE.Mesh(new THREE.SphereGeometry(0.06, 20, 20), mlight);
-    vidro.position.set(0.35, 0.85, 0.48);
-    g.add(vidro);
+    vidro.position.set(0, 0, 0.48);
+    lanterna.add(vidro);
+
+    g.lanterna = lanterna;
 
     scene.add(g);
     return g;
@@ -128,6 +211,9 @@ export function atualizarJogador(jogador, keyState, delta, paredes) {
     if (keyState['KeyD'] || keyState['ArrowRight']) dir.add(lado);
 
     const emMovimento = dir.lengthSq() > 0;
+
+    // Inicializar contador de animação se não existir
+    if (!jogador.walkTime) jogador.walkTime = 0;
 
     if (emMovimento) {
         dir.normalize();
@@ -149,6 +235,44 @@ export function atualizarJogador(jogador, keyState, delta, paredes) {
         }
         jogador.position.x = THREE.MathUtils.clamp(jogador.position.x, -23.5, 23.5);
         jogador.position.z = THREE.MathUtils.clamp(jogador.position.z, -24.5, 33);
+
+        // Animação de caminhada
+        jogador.walkTime += delta * 6; // Velocidade da animação
+        const walkCycle = Math.sin(jogador.walkTime);
+        
+        // Perna esquerda: quando walkCycle é positivo, sobe para trás
+        const hipLeftRotation = walkCycle * 0.4; // Rotação da coxa
+        const kneeLeftRotation = Math.max(0, -walkCycle * 0.5); // Joelho dobra quando canela volta para trás
+        
+        // Perna direita: desfasada em Pi (contrária)
+        const hipRightRotation = -walkCycle * 0.4;
+        const kneeRightRotation = Math.max(0, walkCycle * 0.5);
+
+        jogador.pernas.left.hipJoint.rotation.x = hipLeftRotation;
+        jogador.pernas.left.kneeJoint.rotation.x = kneeLeftRotation;
+        
+        jogador.pernas.right.hipJoint.rotation.x = hipRightRotation;
+        jogador.pernas.right.kneeJoint.rotation.x = kneeRightRotation;
+
+        // Animação dos braços (contrária às pernas: quando perna esquerda avança, braço direito avança)
+        const shoulderLeftRotation = -walkCycle * 0.35;
+        const elbowLeftRotation = Math.max(0, walkCycle * 0.3);
+        
+        const shoulderRightRotation = walkCycle * 0.35;
+        const elbowRightRotation = Math.max(0, -walkCycle * 0.3);
+
+        jogador.bracos.left.shoulderJoint.rotation.x = shoulderLeftRotation;
+        jogador.bracos.left.elbowJoint.rotation.x = elbowLeftRotation;
+        
+        jogador.bracos.right.shoulderJoint.rotation.x = shoulderRightRotation;
+        jogador.bracos.right.elbowJoint.rotation.x = elbowRightRotation;
+
+    } else {
+        // Reset das pernas quando parado
+        jogador.pernas.left.hipJoint.rotation.x = 0;
+        jogador.pernas.left.kneeJoint.rotation.x = 0;
+        jogador.pernas.right.hipJoint.rotation.x = 0;
+        jogador.pernas.right.kneeJoint.rotation.x = 0;
     }
 
     jogador.position.y = 0;

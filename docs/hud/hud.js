@@ -37,9 +37,19 @@ export class HUD {
         this._notifTimer = 0;
         this._introVisible = true;
         this._colItems = [];
+        
+        // Lighting
+        this.lights = {
+            ambient: null,
+            directional: null,
+            pointLights: [],
+            followLight: null,
+            followSpot: null
+        };
 
         this._construirHUD();
         this._construirIntro();
+        this._construirLightingUI();
         window.addEventListener('resize', () => this._resize());
     }
 
@@ -75,7 +85,7 @@ export class HUD {
         roundRect(cc, 1, 1, 758, 44, 7); cc.stroke();
         cc.fillStyle = '#5a3e18';
         cc.font = '15px Georgia,serif'; cc.textAlign = 'center';
-        cc.fillText('WASD — Mover   |   Rato Dir. — Câmara   |   Rato Esq. — Recolher', 380, 30);
+        cc.fillText('WASD — Mover   |   Rato Dir. — Câmara   |   Rato Esq. — Recolher   |   L — Iluminação', 380, 30);
         this._ctrl.tex.needsUpdate = true;
         this.orthoScene.add(this._ctrl.sprite);
     }
@@ -254,6 +264,96 @@ export class HUD {
             if (this._notifTimer < 0.7)
                 this._notif.sprite.material.opacity = Math.max(0, this._notifTimer / 0.7);
         }
+    }
+
+    _construirLightingUI() {
+        const container = document.createElement('div');
+        container.id = 'lighting-control';
+        container.style.cssText = `
+            position: fixed; bottom: 20px; right: 20px;
+            background: rgba(0,0,0,0.85); border: 2px solid #D4AF37; border-radius: 8px;
+            padding: 15px; width: 280px; font-family: Georgia,serif; color: #ccc;
+            z-index: 1000; display: none;
+        `;
+        
+        container.innerHTML = `
+            <div style="color:#D4AF37; margin-bottom:10px; text-align:center; border-bottom:1px solid #D4AF37; padding-bottom:8px;">
+                <strong>ILUMINAÇÃO</strong>
+            </div>
+            <div id="light-sliders"></div>
+        `;
+        
+        document.body.appendChild(container);
+        this._lightingContainer = container;
+        this._lightingSliders = {};
+    }
+
+    setLights(ambientLight, dirLight, pointLights, followLight, followSpot) {
+        this.lights.ambient = ambientLight;
+        this.lights.directional = dirLight;
+        this.lights.pointLights = pointLights;
+        this.lights.followLight = followLight;
+        this.lights.followSpot = followSpot;
+        this._construirSliders();
+    }
+
+    _construirSliders() {
+        const container = document.getElementById('light-sliders');
+        container.innerHTML = '';
+
+        const sliders = [
+            { nome: 'Ambiente', prop: 'ambient', min: 0, max: 4, step: 0.05, initial: 0.50 },
+            { nome: 'Direcional', prop: 'directional', min: 0, max: 2, step: 0.05, initial: 0.4 },
+            { nome: 'Candelabros', prop: 'pointLights', min: 0, max: 3, step: 0.1, initial: 1.4 },
+            { nome: 'Jogador', prop: 'followLight', min: 0, max: 3, step: 0.1, initial: 1.8 },
+            { nome: 'SpotLight', prop: 'followSpot', min: 0, max: 3, step: 0.1, initial: 1.2 },
+        ];
+
+        sliders.forEach(({ nome, prop, min, max, step, initial }) => {
+            const div = document.createElement('div');
+            div.style.marginBottom = '10px';
+            
+            const label = document.createElement('div');
+            label.style.cssText = 'font-size:11px; margin-bottom:4px; display:flex; justify-content:space-between;';
+            label.innerHTML = `<span>${nome}:</span><span id="val-${prop}" style="color:#D4AF37">${initial.toFixed(2)}</span>`;
+            
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = min;
+            slider.max = max;
+            slider.step = step;
+            slider.value = initial;
+            slider.style.cssText = 'width:100%; accent-color:#D4AF37; cursor:pointer;';
+            
+            slider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                document.getElementById(`val-${prop}`).textContent = value.toFixed(2);
+                this._updateLightIntensity(prop, value);
+            });
+            
+            div.appendChild(label);
+            div.appendChild(slider);
+            container.appendChild(div);
+            this._lightingSliders[prop] = slider;
+        });
+    }
+
+    _updateLightIntensity(prop, value) {
+        if (prop === 'ambient' && this.lights.ambient)
+            this.lights.ambient.intensity = value;
+        else if (prop === 'directional' && this.lights.directional)
+            this.lights.directional.intensity = value;
+        else if (prop === 'pointLights' && this.lights.pointLights)
+            this.lights.pointLights.forEach(light => light.intensity = value);
+        else if (prop === 'followLight' && this.lights.followLight)
+            this.lights.followLight.intensity = value;
+        else if (prop === 'followSpot' && this.lights.followSpot)
+            this.lights.followSpot.intensity = value;
+    }
+
+    toggleLightingPanel() {
+        const display = this._lightingContainer.style.display;
+        this._lightingContainer.style.display = display === 'none' ? 'block' : 'none';
     }
 
     render() {
